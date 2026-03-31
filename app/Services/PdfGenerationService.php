@@ -22,61 +22,62 @@ class PdfGenerationService
 
     public function process(int $pdfId): void
     {
-        $pdf = $this->repository->findById($pdfId);
-
-        // Check if the PDF generation record exists
-        if (!$pdf) {
-            Log::warning("PDF Generation attempt on non-existent record", ['id' => $pdfId]);
-            return;
-        }
-
-        // Check if the PDF generation record is already completed or currently processing
-        // If it's already COMPLETED or currently PROCESSING, exit immediately
-        if (in_array($pdf->status, [PdfStatus::COMPLETED, PdfStatus::PROCESSING], true)) {
-            Log::info("Skipping PDF generation: record is already completed or in progress", [
-                'id' => $pdfId,
-                'current_status' => $pdf->status->value,
-            ]);
-            return;
-        }
+        $claimed = false;
+        $pdf = null;
 
         try {
-            Log::info("Starting PDF generation lifecycle", [
+            // Atomically claim this record for processing to avoid duplicate generation.
+            $claimed = $this->repository->claimForProcessing($pdfId);
+
+            if (!$claimed) {
+                $current = $this->repository->findById($pdfId);
+
+                Log::info("PDF generation skipped", [
+                    'id' => $pdfId,
+                    'current_status' => $current?->status?->value,
+                ]);
+                return;
+            }
+
+            $pdf = $this->repository->findById($pdfId);
+
+            // Handles the case where the PDF generation record is deleted after claiming
+            if (!$pdf) {
+                Log::warning("PDF generation record missing after claim", ['id' => $pdfId]);
+                return;
+            }
+
+            Log::info("PDF generation claimed", [
                 'id' => $pdf->id,
                 'user_id' => $pdf->user_id,
             ]);
 
-            // 1. Mark as processing
-            $this->repository->updateStatus($pdf, PdfStatus::PROCESSING);
-
-            // 2. Simulate heavy workload (Requirement: 3-15s)
+            // 1. Simulate heavy workload (Requirement: 3-15s)
             // This can later be replaced with a real PDF generation process
-            $processingTime = rand(3, 15);
-
-            Log::debug("Simulating heavy PDF workload", [
-                'id' => $pdf->id,
-                'seconds' => $processingTime,
-            ]);
+            $processingTime = random_int(3, 15);
 
             sleep($processingTime);
 
-            // 3. Finalize record
+            // 2. Finalize record
             $fileName = "doc_{$pdf->id}_" . now()->timestamp . ".pdf";
             $this->repository->markAsCompleted($pdf, $fileName, $processingTime);
 
-            Log::info("PDF generation lifecycle completed successfully", [
+            Log::info("PDF generation completed", [
                 'id' => $pdf->id,
                 'file' => $fileName,
                 'duration' => $processingTime . 's',
             ]);
 
         } catch (Throwable $e) {
-            Log::error("PDF Generation lifecycle failed", [
-                'id' => $pdf->id,
+            Log::error("PDF generation failed", [
+                'id' => $pdfId,
                 'error' => $e->getMessage(),
             ]);
 
-            $this->repository->updateStatus($pdf, PdfStatus::FAILED);
+            if ($claimed && $pdf) {
+                $this->repository->updateStatus($pdf, PdfStatus::FAILED);
+            }
+
             throw $e; // Re-throw so the job knows it failed
         }
     }

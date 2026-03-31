@@ -28,6 +28,16 @@ class PdfGenerationRepository
         return $pdf->update(['status' => $status]);
     }
 
+    public function claimForProcessing(int $id): bool
+    {
+        $updatedRows = PdfGeneration::query()
+            ->where('id', $id)
+            ->where('status', PdfStatus::WAITING->value)
+            ->update(['status' => PdfStatus::PROCESSING->value]);
+
+        return $updatedRows === 1;
+    }
+
     public function markAsCompleted(PdfGeneration $pdf, string $fileName, int $processingTime): bool
     {
         return $pdf->update([
