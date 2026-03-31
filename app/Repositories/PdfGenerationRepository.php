@@ -47,6 +47,16 @@ class PdfGenerationRepository
         return $updatedRows === 1;
     }
 
+    public function cancelIfWaiting(int $id): bool
+    {
+        $updatedRows = PdfGeneration::query()
+            ->where('id', $id)
+            ->where('status', PdfStatus::WAITING->value)
+            ->update(['status' => PdfStatus::CANCELLED->value]);
+
+        return $updatedRows === 1;
+    }
+
     public function markAsCompleted(PdfGeneration $pdf, string $fileName, int $processingTime): bool
     {
         return $pdf->update([

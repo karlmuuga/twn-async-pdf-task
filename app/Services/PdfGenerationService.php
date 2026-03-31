@@ -90,6 +90,32 @@ class PdfGenerationService
     }
 
     /**
+     * Attempts to cancel a queued PDF generation before processing starts.
+     * Returns true only when the status transition WAITING -> CANCELLED succeeds.
+     */
+    public function cancel(int $pdfId): bool
+    {
+        $cancelled = $this->repository->cancelIfWaiting($pdfId);
+
+        if ($cancelled) {
+            Log::info("PDF generation cancelled", [
+                'id' => $pdfId,
+            ]);
+
+            return true;
+        }
+
+        $current = $this->repository->findById($pdfId);
+
+        Log::info("PDF generation cancel skipped", [
+            'id' => $pdfId,
+            'current_status' => $current?->status?->value,
+        ]);
+
+        return false;
+    }
+
+    /**
      * Helper method to get the randomized processing time.
      * @return int The processing time in seconds.
      */
