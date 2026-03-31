@@ -197,15 +197,33 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        // We are leaving the default queue as is, so we can use it for other tasks in the future.
+        'supervisor-default' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
+            'memory' => 64, // Try to tame the memory usage of PHP.
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+        // This supervisor is for the pdf-tasks queue, which is a business critical queue.
+        // We are using a higher number of processes to handle the load.
+        'supervisor-pdf-tasks' => [
+            'connection' => 'redis',
+            'queue' => ['pdf-tasks'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1, // Keep it low to avoid unnecessary overhead.
+            'maxProcesses' => 5, // Ramp up to 5 processes during high load.
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 64,
             'tries' => 1,
             'timeout' => 60,
             'nice' => 0,
@@ -214,7 +232,12 @@ return [
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
+            'supervisor-default' => [
+                'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'supervisor-pdf-tasks' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
@@ -222,13 +245,10 @@ return [
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'connection' => 'redis',
-                'queue' => ['default'],
-                'balance' => 'auto',
-                'autoScalingStrategy' => 'time',
-                'minProcesses' => 3,
-                'maxProcesses' => 15,
+            'supervisor-default' => [
+                'tries' => 3,
+            ],
+            'supervisor-pdf-tasks' => [
                 'tries' => 3,
             ],
         ],
