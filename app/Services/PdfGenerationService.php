@@ -55,13 +55,15 @@ class PdfGenerationService
 
             // 1. Simulate heavy workload (Requirement: 3-15s)
             // This can later be replaced with a real PDF generation process
-            $processingTime = random_int(3, 15);
-
-            sleep($processingTime);
+            $processingTime = $this->getProcessingTime();
+            $this->simulateProcessing($processingTime);
 
             // 2. Finalize record
             $fileName = "doc_{$pdf->id}_" . now()->timestamp . '_' . Str::lower(Str::random(6)) . ".pdf";
-            $this->repository->markAsCompleted($pdf, $fileName, $processingTime);
+            $completed = $this->repository->markAsCompleted($pdf, $fileName, $processingTime);
+            if (!$completed) {
+                throw new RuntimeException("Failed to mark PDF generation as completed: {$pdfId}");
+            }
 
             Log::info("PDF generation completed", [
                 'id' => $pdf->id,
@@ -85,5 +87,23 @@ class PdfGenerationService
 
             throw $e; // Re-throw so the job knows it failed
         }
+    }
+
+    /**
+     * Helper method to get the randomized processing time.
+     * @return int The processing time in seconds.
+     */
+    protected function getProcessingTime(): int
+    {
+        return random_int(3, 15);
+    }
+
+    /**
+     * Helper method to simulate the processing time.
+     * @param int $processingTime The processing time in seconds.
+     */
+    protected function simulateProcessing(int $processingTime): void
+    {
+        sleep($processingTime);
     }
 }
