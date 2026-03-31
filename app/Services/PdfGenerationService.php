@@ -28,7 +28,7 @@ class PdfGenerationService
         $pdf = null;
 
         try {
-            // Atomically claim this record for processing to avoid duplicate generation.
+            // Atomically claim this record for processing to avoid duplicate generation
             $claimed = $this->repository->claimForProcessing($pdfId);
 
             if (!$claimed) {
