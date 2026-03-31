@@ -14,6 +14,7 @@ enum PdfStatus: string
     case PROCESSING = 'processing';
     case COMPLETED = 'completed';
     case FAILED = 'failed';
+    case CANCELLED = 'cancelled';
 
     /**
      * Helper to get a human-readable Estonian label if needed for the UI.
@@ -25,6 +26,7 @@ enum PdfStatus: string
             self::PROCESSING => 'Töötlemisel',
             self::COMPLETED => 'Valmis',
             self::FAILED => 'Ebaõnnestus',
+            self::CANCELLED => 'Tühistatud',
         };
     }
 }
