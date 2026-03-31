@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PdfStatus;
+use App\Models\PdfGeneration;
 use App\Repositories\PdfGenerationRepository;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -21,6 +23,7 @@ class PdfGenerationService
     public function __construct(
         protected PdfGenerationRepository $repository
     ) {}
+
 
     public function process(int $pdfId): void
     {
@@ -113,6 +116,37 @@ class PdfGenerationService
         ]);
 
         return false;
+    }
+
+    /**
+     * Get all PDF generation records for a single user.
+     *
+     * @return Collection<int, PdfGeneration>
+     */
+    public function getByUserId(string $userId): Collection
+    {
+        return $this->repository->getByUserId($userId);
+    }
+
+    /**
+     * Get normalized status stats for a user.
+     *
+     * @return array<string, int>
+     */
+    public function getStatsByUserId(string $userId): array
+    {
+        $countsByStatus = $this->repository->getStatsByUserId($userId);
+        $stats = [
+            'total' => (int) $countsByStatus->sum(),
+        ];
+
+        // Loop through all statuses and add the count to the stats array
+        // This way we don't need to manually update the stats array when a new status is added
+        foreach (PdfStatus::cases() as $status) {
+            $stats[$status->value] = (int) ($countsByStatus[$status->value] ?? 0);
+        }
+
+        return $stats;
     }
 
     /**
