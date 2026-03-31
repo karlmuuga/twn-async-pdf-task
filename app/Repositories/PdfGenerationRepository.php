@@ -28,6 +28,15 @@ class PdfGenerationRepository
         return $pdf->update(['status' => $status]);
     }
 
+    public function updateStatusById(int $id, PdfStatus $status): bool
+    {
+        $updatedRows = PdfGeneration::query()
+            ->where('id', $id)
+            ->update(['status' => $status->value]);
+
+        return $updatedRows === 1;
+    }
+
     public function claimForProcessing(int $id): bool
     {
         $updatedRows = PdfGeneration::query()

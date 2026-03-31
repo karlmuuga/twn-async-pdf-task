@@ -8,6 +8,7 @@ use App\Enums\PdfStatus;
 use App\Repositories\PdfGenerationRepository;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -44,8 +45,7 @@ class PdfGenerationService
 
             // Handles the case where the PDF generation record is deleted after claiming
             if (!$pdf) {
-                Log::warning("PDF generation record missing after claim", ['id' => $pdfId]);
-                return;
+                throw new RuntimeException("PDF generation record missing after claim: {$pdfId}");
             }
 
             Log::info("PDF generation claimed", [
@@ -75,8 +75,12 @@ class PdfGenerationService
                 'error' => $e->getMessage(),
             ]);
 
-            if ($claimed && $pdf) {
-                $this->repository->updateStatus($pdf, PdfStatus::FAILED);
+            if ($claimed) {
+                if ($pdf) {
+                    $this->repository->updateStatus($pdf, PdfStatus::FAILED);
+                } else {
+                    $this->repository->updateStatusById($pdfId, PdfStatus::FAILED);
+                }
             }
 
             throw $e; // Re-throw so the job knows it failed
