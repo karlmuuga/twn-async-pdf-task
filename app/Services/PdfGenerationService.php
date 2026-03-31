@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\PdfStatus;
 use App\Repositories\PdfGenerationRepository;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -59,7 +60,7 @@ class PdfGenerationService
             sleep($processingTime);
 
             // 2. Finalize record
-            $fileName = "doc_{$pdf->id}_" . now()->timestamp . ".pdf";
+            $fileName = "doc_{$pdf->id}_" . now()->timestamp . '_' . Str::lower(Str::random(6)) . ".pdf";
             $this->repository->markAsCompleted($pdf, $fileName, $processingTime);
 
             Log::info("PDF generation completed", [
