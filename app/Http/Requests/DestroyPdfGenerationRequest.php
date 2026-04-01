@@ -14,6 +14,10 @@ class DestroyPdfGenerationRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Prepare the validation request by merging the pdf_generation_id from the route.
+     * This is necessary because the pdf_generation_id is not part of the request body.
+     */
     protected function prepareForValidation(): void
     {
         $this->merge([
