@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PdfStatus;
+use App\Jobs\GeneratePdfJob;
 use App\Models\PdfGeneration;
 use App\Repositories\PdfGenerationRepository;
 use Illuminate\Support\Collection;
@@ -24,6 +25,34 @@ class PdfGenerationService
         protected PdfGenerationRepository $repository
     ) {}
 
+
+    public function create(string $userId): PdfGeneration
+    {
+        $pdf = $this->repository->create([
+            'user_id' => $userId,
+            'status' => PdfStatus::WAITING,
+        ]);
+
+        GeneratePdfJob::dispatch($pdf->id);
+
+        return $pdf;
+    }
+
+    /**
+     * Create and queue multiple PDF generations for one user.
+     *
+     * @return Collection<int, PdfGeneration>
+     */
+    public function createMany(string $userId, int $pdfCount): Collection
+    {
+        $pdfs = collect();
+
+        for ($i = 0; $i < $pdfCount; $i++) {
+            $pdfs->push($this->create($userId));
+        }
+
+        return $pdfs;
+    }
 
     public function process(int $pdfId): void
     {
