@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PdfStatus;
+use App\Events\PdfStatusUpdated;
 use App\Jobs\GeneratePdfJob;
 use App\Models\PdfGeneration;
 use App\Repositories\PdfGenerationRepository;
@@ -97,6 +98,8 @@ class PdfGenerationService
                 throw new RuntimeException("Failed to mark PDF generation as completed: {$pdfId}");
             }
 
+            broadcast(new PdfStatusUpdated($pdf->refresh()));
+
             Log::info("PDF generation completed", [
                 'id' => $pdf->id,
                 'file' => $fileName,
@@ -133,6 +136,11 @@ class PdfGenerationService
             Log::info("PDF generation cancelled", [
                 'id' => $pdfId,
             ]);
+
+            $cancelledPdf = $this->repository->findById($pdfId);
+            if ($cancelledPdf) {
+                broadcast(new PdfStatusUpdated($cancelledPdf->refresh()));
+            }
 
             return true;
         }
