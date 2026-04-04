@@ -31,16 +31,4 @@ class PdfGenerationFactory extends Factory
             'processing_time' => null, // Initially null as it's not processed yet
         ];
     }
-
-    /**
-     * State for a completed job.
-     * Improves test readability by explicitly setting the status.
-     */
-    public function completed(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => PdfStatus::COMPLETED,
-            'processing_time' => $this->faker->numberBetween(3, 15),
-        ]);
-    }
 }

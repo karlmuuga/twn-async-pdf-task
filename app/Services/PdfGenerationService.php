@@ -11,6 +11,7 @@ use App\Models\PdfGeneration;
 use App\Repositories\PdfGenerationRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -201,6 +202,6 @@ class PdfGenerationService
      */
     protected function simulateProcessing(int $processingTime): void
     {
-        sleep($processingTime);
+        Sleep::for($processingTime)->seconds();
     }
 }
