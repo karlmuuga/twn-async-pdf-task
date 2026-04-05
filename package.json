@@ -7,8 +7,12 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
         "@inertiajs/react": "^3.0.0",
         "@laravel/echo-react": "^2.3.3",
+        "@mui/icons-material": "^7.3.9",
+        "@mui/material": "^7.3.9",
         "@tailwindcss/vite": "^4.2.2",
         "@types/node": "^25.5.0",
         "@types/react": "^19.2.14",
