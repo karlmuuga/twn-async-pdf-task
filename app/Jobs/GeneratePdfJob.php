@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Services\PdfGenerationService;
+use App\Services\PdfProcessingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -36,9 +36,9 @@ class GeneratePdfJob implements ShouldQueue
      * Execute the job.
      * Laravel automatically injects the service via dependency injection.
      */
-    public function handle(PdfGenerationService $service): void
+    public function handle(PdfProcessingService $processing): void
     {
-        $service->process($this->pdfGenerationId);
+        $processing->process($this->pdfGenerationId);
     }
 
     /**
@@ -47,7 +47,10 @@ class GeneratePdfJob implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        // The Service already handles status updates,
-        // if needed, add emergency logging here
+        try {
+            app(PdfProcessingService::class)->fail($this->pdfGenerationId);
+        } catch (Throwable $inner) {
+            report($inner);
+        }
     }
 }

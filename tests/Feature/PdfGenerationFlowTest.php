@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\PdfStatus;
-use App\Events\PdfStatusUpdated;
+use App\Events\PdfGenerationStatusChanged;
 use App\Models\PdfGeneration;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Sleep;
@@ -14,9 +14,8 @@ beforeEach(function () {
 });
 
 describe('POST /api/pdf-generations (happy path)', function () {
-    it('completes sync flow, persists DB state, and dispatches PdfStatusUpdated', function () {
-        // Fake the event so we can later assert it was dispatched
-        Event::fake([PdfStatusUpdated::class]);
+    it('completes sync flow, persists DB state, and dispatches PdfGenerationStatusChanged', function () {
+        Event::fake([PdfGenerationStatusChanged::class]);
 
         $userId = (string) Str::uuid();
 
@@ -41,13 +40,15 @@ describe('POST /api/pdf-generations (happy path)', function () {
             ->and($pdf->processing_time)->toBeGreaterThanOrEqual(3)
             ->and($pdf->processing_time)->toBeLessThanOrEqual(15);
 
-        /*
-         * Laravel has no Broadcast::fake(), so instead we assert the event was
-         * dispatched and the status is COMPLETED.
-         */
         Event::assertDispatched(
-            PdfStatusUpdated::class,
-            fn (PdfStatusUpdated $e) => $e->pdf->status === PdfStatus::COMPLETED
+            PdfGenerationStatusChanged::class,
+            fn (PdfGenerationStatusChanged $e) => $e->from === PdfStatus::WAITING
+                && $e->to === PdfStatus::PROCESSING
+        );
+        Event::assertDispatched(
+            PdfGenerationStatusChanged::class,
+            fn (PdfGenerationStatusChanged $e) => $e->from === PdfStatus::PROCESSING
+                && $e->to === PdfStatus::COMPLETED
         );
     });
 });
