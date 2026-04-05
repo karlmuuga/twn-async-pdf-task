@@ -1,6 +1,7 @@
 import './bootstrap';
 import { createInertiaApp } from '@inertiajs/react';
 import type { ComponentType } from 'react';
+import { CssBaseline } from '@mui/material';
 import { createRoot } from 'react-dom/client';
 import { configureEcho } from '@laravel/echo-react';
 
@@ -21,6 +22,11 @@ createInertiaApp({
         return page;
     },
     setup({ el, App, props }) {
-        createRoot(el).render(<App {...props} />);
+        createRoot(el).render(
+            <>
+                <CssBaseline />
+                <App {...props} />
+            </>
+        );
     },
 });
