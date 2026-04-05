@@ -8,6 +8,7 @@ use App\Enums\PdfStatus;
 use App\Events\PdfStatusUpdated;
 use App\Jobs\GeneratePdfJob;
 use App\Models\PdfGeneration;
+use App\Repositories\PdfGenerationLifecycleRepository;
 use App\Repositories\PdfGenerationRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,8 @@ use Throwable;
 class PdfGenerationService
 {
     public function __construct(
-        protected PdfGenerationRepository $repository
+        protected PdfGenerationRepository $repository,
+        protected PdfGenerationLifecycleRepository $lifecycle,
     ) {}
 
 
@@ -63,7 +65,11 @@ class PdfGenerationService
 
         try {
             // Atomically claim this record for processing to avoid duplicate generation
-            $claimed = $this->repository->claimForProcessing($pdfId);
+            $claimed = $this->lifecycle->transition(
+                $pdfId,
+                PdfStatus::WAITING,
+                PdfStatus::PROCESSING
+            );
 
             if (!$claimed) {
                 $current = $this->repository->findById($pdfId);
@@ -94,7 +100,15 @@ class PdfGenerationService
 
             // 2. Finalize record
             $fileName = "doc_{$pdf->id}_" . now()->timestamp . '_' . Str::lower(Str::random(6)) . ".pdf";
-            $completed = $this->repository->markAsCompleted($pdf, $fileName, $processingTime);
+            $completed = $this->lifecycle->transition(
+                $pdfId,
+                PdfStatus::PROCESSING,
+                PdfStatus::COMPLETED,
+                [
+                    'file_name' => $fileName,
+                    'processing_time' => $processingTime,
+                ]
+            );
             if (!$completed) {
                 throw new RuntimeException("Failed to mark PDF generation as completed: {$pdfId}");
             }
@@ -114,11 +128,7 @@ class PdfGenerationService
             ]);
 
             if ($claimed) {
-                if ($pdf) {
-                    $this->repository->updateStatus($pdf, PdfStatus::FAILED);
-                } else {
-                    $this->repository->updateStatusById($pdfId, PdfStatus::FAILED);
-                }
+                $this->lifecycle->transition($pdfId, PdfStatus::PROCESSING, PdfStatus::FAILED);
             }
 
             throw $e; // Re-throw so the job knows it failed
@@ -131,7 +141,11 @@ class PdfGenerationService
      */
     public function cancel(int $pdfId): bool
     {
-        $cancelled = $this->repository->cancelIfWaiting($pdfId);
+        $cancelled = $this->lifecycle->transition(
+            $pdfId,
+            PdfStatus::WAITING,
+            PdfStatus::CANCELLED
+        );
 
         if ($cancelled) {
             Log::info("PDF generation cancelled", [
