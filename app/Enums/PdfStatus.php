@@ -15,18 +15,4 @@ enum PdfStatus: string
     case COMPLETED = 'completed';
     case FAILED = 'failed';
     case CANCELLED = 'cancelled';
-
-    /**
-     * Helper to get a human-readable Estonian label if needed for the UI.
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::WAITING => 'Ootel',
-            self::PROCESSING => 'Töötlemisel',
-            self::COMPLETED => 'Valmis',
-            self::FAILED => 'Ebaõnnestus',
-            self::CANCELLED => 'Tühistatud',
-        };
-    }
 }

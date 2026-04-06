@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Model: PdfGeneration
  * Tracks the lifecycle of a PDF generation request. 
- * Supports  logging status changes and processing metadata.
+ * Supports logging status changes and processing metadata.
  * @property int $id
  * @property string $user_id           // UUID string representing the user's session
  * @property PdfStatus $status         // Enum-casted status: waiting, processing, completed, failed
