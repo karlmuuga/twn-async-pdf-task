@@ -59,28 +59,20 @@ This project uses Laravel Sail for a seamless Docker environment. If you run int
 
 Note for Windows users: Please run these commands inside your WSL2 terminal.
 
-### 1. Clone and install dependencies
+### 1. Clone and install Composer dependencies
 
 ```bash
 git clone https://github.com/karlmuuga/twn-async-pdf-task.git
 cd twn-async-pdf-task
 cp .env.example .env
 
-# Install Composer dependencies via a temporary container
+# Install Composer dependencies via a temporary container (needed to bootstrap Sail)
 docker run --rm \
     -u "$(id -u):$(id -g)" \
     -v "$(pwd):/var/www/html" \
     -w /var/www/html \
     composer:2 \
     composer install --ignore-platform-reqs
-
-# Install NPM dependencies via a temporary container
-docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -v "$(pwd):/var/www/html" \
-    -w /var/www/html \
-    node:24 \
-    npm install
 ```
 
 ### 2. Start the environment
@@ -89,11 +81,10 @@ docker run --rm \
 ./vendor/bin/sail up -d
 ```
 
-### 3. Set app key and run database migrations
-
-When all containers have been started successfully (initial PostgreSQL startup can take a few seconds), run the following commands:
-
-```
+### 3. Install NPM dependencies and set up the application (initial setup only)
+```bash
+./vendor/bin/sail npm install
+./vendor/bin/sail restart vite
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
 ```
