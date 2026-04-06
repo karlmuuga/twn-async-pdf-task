@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 
 export type PdfStatus = 'waiting' | 'processing' | 'completed' | 'failed' | 'cancelled';
 export type ConnectionStatus = 'connecting' | 'connected' | 'offline';
@@ -422,12 +422,10 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         };
 
         pusherConnection?.bind('state_change', handleStateChange);
-        channel.listen('.pdf.status.updated', handleStatusUpdate);
         channel.listen('.pdf.generation.status.changed', handleStatusUpdate);
 
         return () => {
             pusherConnection?.unbind('state_change', handleStateChange);
-            channel.stopListening('.pdf.status.updated');
             channel.stopListening('.pdf.generation.status.changed');
             echo.leaveChannel(channelName);
             if (flushRafRef.current !== null) {
@@ -526,12 +524,10 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         }, 300);
     }, []);
 
-    const stableStats = useMemo(() => stats, [stats]);
-
     return {
         userId,
         jobs,
-        stats: stableStats,
+        stats,
         loading,
         requestInFlight,
         errorMessage,
