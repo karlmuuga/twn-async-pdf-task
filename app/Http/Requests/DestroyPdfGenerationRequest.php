@@ -21,7 +21,7 @@ class DestroyPdfGenerationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'pdf_generation_id' => $this->route('id') ?? $this->route('pdf_generation'),
+            'pdf_generation_id' => $this->route('id'),
         ]);
     }
 

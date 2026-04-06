@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Async PDF Generator API
+  version: 1.0.0
+  description: OpenAPI documentation for PDF generation endpoints.
+servers:
+  - url: /api
+tags:
+  - name: PDF Generations
+    description: Manage asynchronous PDF generation jobs for a user.
+paths:
+  /pdf-generations:
+    get:
+      tags:
+        - PDF Generations
+      summary: List PDF generations by user
+      description: Returns all PDF generation jobs for the provided user, newest first.
+      parameters:
+        - $ref: '#/components/parameters/UserIdQuery'
+      responses:
+        '200':
+          description: List of PDF generations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PdfGeneration'
+              examples:
+                mixedStatuses:
+                  summary: Waiting and completed jobs
+                  value:
+                    - id: 43
+                      user_id: 550e8400-e29b-41d4-a716-446655440000
+                      status: waiting
+                      file_name: null
+                      processing_time: null
+                      created_at: '2026-04-06T10:26:00.000000Z'
+                      updated_at: '2026-04-06T10:26:00.000000Z'
+                    - id: 42
+                      user_id: 550e8400-e29b-41d4-a716-446655440000
+                      status: completed
+                      file_name: doc_42_1764823842_xk9f7a.pdf
+                      processing_time: 9
+                      created_at: '2026-04-06T10:25:00.000000Z'
+                      updated_at: '2026-04-06T10:25:09.000000Z'
+        '422':
+          $ref: '#/components/responses/GetPdfGenerationsValidationError'
+    post:
+      tags:
+        - PDF Generations
+      summary: Create PDF generations
+      description: Creates one or more PDF generation jobs for a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePdfGenerationsRequest'
+            examples:
+              createOne:
+                summary: Create one PDF
+                value:
+                  user_id: 550e8400-e29b-41d4-a716-446655440000
+                  pdf_count: 1
+              createMany:
+                summary: Create multiple PDFs
+                value:
+                  user_id: 550e8400-e29b-41d4-a716-446655440000
+                  pdf_count: 5
+      responses:
+        '201':
+          description: PDF generations created.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PdfGeneration'
+              examples:
+                createdJobsQueued:
+                  summary: Newly queued jobs
+                  value:
+                    - id: 101
+                      user_id: 550e8400-e29b-41d4-a716-446655440000
+                      status: waiting
+                      file_name: null
+                      processing_time: null
+                      created_at: '2026-04-06T11:00:00.000000Z'
+                      updated_at: '2026-04-06T11:00:00.000000Z'
+                    - id: 100
+                      user_id: 550e8400-e29b-41d4-a716-446655440000
+                      status: waiting
+                      file_name: null
+                      processing_time: null
+                      created_at: '2026-04-06T11:00:00.000000Z'
+                      updated_at: '2026-04-06T11:00:00.000000Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /pdf-generations/aggregate:
+    get:
+      tags:
+        - PDF Generations
+      summary: Get aggregate PDF generation stats
+      description: Returns status counts and total count for the provided user.
+      parameters:
+        - $ref: '#/components/parameters/UserIdQuery'
+      responses:
+        '200':
+          description: Aggregate statistics by status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfGenerationAggregate'
+              examples:
+                sample:
+                  value:
+                    total: 5
+                    waiting: 2
+                    processing: 1
+                    completed: 2
+                    failed: 0
+                    cancelled: 0
+        '422':
+          $ref: '#/components/responses/GetPdfGenerationsValidationError'
+  /pdf-generations/{id}:
+    delete:
+      tags:
+        - PDF Generations
+      summary: Cancel a queued PDF generation
+      description: |
+        Attempts to cancel a PDF generation job.
+        Cancellation only succeeds when the job is still in `waiting` status.
+      parameters:
+        - $ref: '#/components/parameters/PdfGenerationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelPdfGenerationRequest'
+            example:
+              user_id: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Cancellation attempt result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelPdfGenerationResponse'
+              examples:
+                cancelled:
+                  value:
+                    cancelled: true
+                notCancelled:
+                  value:
+                    cancelled: false
+        '422':
+          $ref: '#/components/responses/CancelValidationError'
+components:
+  parameters:
+    UserIdQuery:
+      name: user_id
+      in: query
+      required: true
+      description: User UUID used to scope PDF generation records.
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+    PdfGenerationIdPath:
+      name: id
+      in: path
+      required: true
+      description: Numeric ID of the PDF generation record.
+      schema:
+        type: integer
+        minimum: 1
+        example: 42
+  schemas:
+    PdfStatus:
+      type: string
+      enum:
+        - waiting
+        - processing
+        - completed
+        - failed
+        - cancelled
+    PdfGeneration:
+      type: object
+      example:
+        id: 42
+        user_id: 550e8400-e29b-41d4-a716-446655440000
+        status: completed
+        file_name: doc_42_1764823842_xk9f7a.pdf
+        processing_time: 9
+        created_at: '2026-04-06T10:25:00.000000Z'
+        updated_at: '2026-04-06T10:25:09.000000Z'
+      properties:
+        id:
+          type: integer
+          example: 42
+        user_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        status:
+          $ref: '#/components/schemas/PdfStatus'
+        file_name:
+          type: string
+          nullable: true
+          example: doc_42_1764823842_xk9f7a.pdf
+        processing_time:
+          type: integer
+          nullable: true
+          description: |
+            Simulated processing time in seconds.
+            This is null for jobs that are not completed (including waiting jobs).
+          minimum: 3
+          maximum: 15
+          example: 9
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-04-06T10:25:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-04-06T10:25:09.000000Z'
+      required:
+        - id
+        - user_id
+        - status
+        - file_name
+        - created_at
+        - updated_at
+    CreatePdfGenerationsRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Must be a valid UUID.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        pdf_count:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of generation jobs to create (minimum 1, maximum 100).
+          example: 3
+      required:
+        - user_id
+        - pdf_count
+    CancelPdfGenerationRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Must match the owner of the PDF generation record.
+          example: 550e8400-e29b-41d4-a716-446655440000
+      required:
+        - user_id
+    CancelPdfGenerationResponse:
+      type: object
+      properties:
+        cancelled:
+          type: boolean
+          description: True when the status transitioned from waiting to cancelled.
+          example: true
+      required:
+        - cancelled
+    PdfGenerationAggregate:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 5
+        waiting:
+          type: integer
+          example: 2
+        processing:
+          type: integer
+          example: 1
+        completed:
+          type: integer
+          example: 2
+        failed:
+          type: integer
+          example: 0
+        cancelled:
+          type: integer
+          example: 0
+      required:
+        - total
+        - waiting
+        - processing
+        - completed
+        - failed
+        - cancelled
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The given data was invalid.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - message
+        - errors
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          examples:
+            invalidUserId:
+              value:
+                message: The user_id must be a valid UUID.
+                errors:
+                  user_id:
+                    - The user_id must be a valid UUID.
+            pdfCountBelowMinimum:
+              value:
+                message: The pdf_count must be at least 1.
+                errors:
+                  pdf_count:
+                    - The pdf_count must be at least 1.
+            pdfCountAboveMaximum:
+              value:
+                message: The pdf_count must not be greater than 100.
+                errors:
+                  pdf_count:
+                    - The pdf_count must not be greater than 100.
+    CancelValidationError:
+      description: |
+        Cancellation request validation failed.
+        The most common case is `pdf_generation_id` not belonging to the provided `user_id`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          examples:
+            invalidPdfGenerationId:
+              value:
+                message: The selected pdf_generation_id is invalid.
+                errors:
+                  pdf_generation_id:
+                    - The selected pdf_generation_id is invalid.
+    GetPdfGenerationsValidationError:
+      description: Request validation failed for list/aggregate endpoints.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          examples:
+            missingUserId:
+              value:
+                message: The user_id field is required.
+                errors:
+                  user_id:
+                    - The user_id field is required.
+            invalidUserId:
+              value:
+                message: The user_id must be a valid UUID.
+                errors:
+                  user_id:
+                    - The user_id must be a valid UUID.

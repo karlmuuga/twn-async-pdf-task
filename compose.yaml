@@ -5,7 +5,8 @@ services:
             dockerfile: Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.5/app'
+        image: 'sail-php85/app'
+        pull_policy: never
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
@@ -24,7 +25,8 @@ services:
             - pgsql
             - redis
     horizon:
-        image: 'sail-8.5/app'
+        image: 'sail-php85/app'
+        pull_policy: never
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -38,7 +40,8 @@ services:
             - sail
         command: php artisan horizon
     reverb:
-        image: 'sail-8.5/app'
+        image: 'sail-php85/app'
+        pull_policy: never
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -52,7 +55,8 @@ services:
             - sail
         command: php artisan reverb:start --host=0.0.0.0 --port=8080
     vite:
-        image: 'sail-8.5/app'
+        image: 'sail-php85/app'
+        pull_policy: never
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1

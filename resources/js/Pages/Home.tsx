@@ -16,6 +16,7 @@ export default function Home() {
             connectionStatus={dashboardState.connectionStatus}
             toasts={dashboardState.toasts}
             onGenerationCountChange={dashboardState.setGenerationCount}
+            onEnqueueToast={dashboardState.enqueueToast}
             onCreateJobs={dashboardState.createPdfJobs}
             onCancelJob={dashboardState.cancelPdfJob}
             onToastClose={dashboardState.closeToast}

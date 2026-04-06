@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 
 export type PdfStatus = 'waiting' | 'processing' | 'completed' | 'failed' | 'cancelled';
 export type ConnectionStatus = 'connecting' | 'connected' | 'offline';
@@ -55,6 +55,7 @@ interface UsePdfJobsResult {
     connectionStatus: ConnectionStatus;
     toasts: ActiveToast[];
     setGenerationCount: (value: number) => void;
+    enqueueToast: (severity: ToastSeverity, message: string) => void;
     closeToast: (id: string) => void;
     createPdfJobs: (countOverride?: number) => Promise<void>;
     cancelPdfJob: (jobId: number) => Promise<void>;
@@ -405,7 +406,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
             scheduleQueuedStatusFlush();
 
             /*
-             * Defer React state updates (setToast) completely out of the WebSocket
+             * Defer React state updates (enqueueToast) completely out of the WebSocket
              * message handler callback so the browser does not attribute the
              * React render time to the 'message' handler and trigger violations.
              */
@@ -422,12 +423,10 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         };
 
         pusherConnection?.bind('state_change', handleStateChange);
-        channel.listen('.pdf.status.updated', handleStatusUpdate);
         channel.listen('.pdf.generation.status.changed', handleStatusUpdate);
 
         return () => {
             pusherConnection?.unbind('state_change', handleStateChange);
-            channel.stopListening('.pdf.status.updated');
             channel.stopListening('.pdf.generation.status.changed');
             echo.leaveChannel(channelName);
             if (flushRafRef.current !== null) {
@@ -440,7 +439,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
 
     /*
      * Create the PDF jobs.
-     * It's main purpose is to send the request to the server, and update the jobs state.
+     * Its main purpose is to send the request to the server, and update the jobs state.
      */
     const createPdfJobs = useCallback(async (countOverride?: number) => {
         const candidateCount = countOverride ?? generationCount;
@@ -526,12 +525,10 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         }, 300);
     }, []);
 
-    const stableStats = useMemo(() => stats, [stats]);
-
     return {
         userId,
         jobs,
-        stats: stableStats,
+        stats,
         loading,
         requestInFlight,
         errorMessage,
@@ -539,6 +536,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         connectionStatus,
         toasts,
         setGenerationCount,
+        enqueueToast,
         closeToast,
         createPdfJobs,
         cancelPdfJob,
