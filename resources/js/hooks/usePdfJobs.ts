@@ -55,6 +55,7 @@ interface UsePdfJobsResult {
     connectionStatus: ConnectionStatus;
     toasts: ActiveToast[];
     setGenerationCount: (value: number) => void;
+    enqueueToast: (severity: ToastSeverity, message: string) => void;
     closeToast: (id: string) => void;
     createPdfJobs: (countOverride?: number) => Promise<void>;
     cancelPdfJob: (jobId: number) => Promise<void>;
@@ -535,6 +536,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
         connectionStatus,
         toasts,
         setGenerationCount,
+        enqueueToast,
         closeToast,
         createPdfJobs,
         cancelPdfJob,

@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import type { ActiveToast, ConnectionStatus, PdfJob, PdfStats } from '@/hooks/usePdfJobs';
+import type { ActiveToast, ConnectionStatus, PdfJob, PdfStats, ToastSeverity } from '@/hooks/usePdfJobs';
 import { dashboardStyles } from '@/styles/dashboardStyles';
 import {
     CONNECTION_COLORS,
@@ -45,6 +45,7 @@ interface PdfDashboardTemplateProps {
     connectionStatus: ConnectionStatus;
     toasts: ActiveToast[];
     onGenerationCountChange: (value: number) => void;
+    onEnqueueToast: (severity: ToastSeverity, message: string) => void;
     onCreateJobs: (countOverride?: number) => Promise<void>;
     onCancelJob: (jobId: number) => void;
     onToastClose: (id: string) => void;
@@ -72,6 +73,7 @@ interface GenerateControlsProps {
     requestInFlight: boolean;
     errorMessage: string | null;
     onGenerationCountChange: (value: number) => void;
+    onEnqueueToast: (severity: ToastSeverity, message: string) => void;
     onCreateJobs: (countOverride?: number) => Promise<void>;
 }
 
@@ -81,26 +83,52 @@ const GenerateControls = memo(
         requestInFlight,
         errorMessage,
         onGenerationCountChange,
+        onEnqueueToast,
         onCreateJobs,
     }: GenerateControlsProps) => {
         const inputRef = useRef<HTMLInputElement | null>(null);
 
-        const parseInputValue = useCallback((rawValue?: string) => {
-            const sourceValue = rawValue ?? inputRef.current?.value ?? String(initialGenerationCount);
-            const parsed = Number(sourceValue);
-            return Number.isFinite(parsed) ? Math.max(1, Math.min(100, Math.floor(parsed))) : 1;
-        }, [initialGenerationCount]);
+        const isValidCount = useCallback((trimmed: string): boolean => {
+            if (trimmed === '') return false;
+            const parsed = Number(trimmed);
+            return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 1 && parsed <= 100;
+        }, []);
 
-        const commitInputValue = useCallback(() => {
-            const sanitized = parseInputValue();
-            onGenerationCountChange(sanitized);
-            return sanitized;
-        }, [onGenerationCountChange, parseInputValue]);
+        /** Silently clears the field on blur if the value is not a valid count. */
+        const handleBlur = useCallback(() => {
+            const trimmed = (inputRef.current?.value ?? '').trim();
+            if (!isValidCount(trimmed) && inputRef.current) {
+                inputRef.current.value = '';
+            } else if (isValidCount(trimmed)) {
+                onGenerationCountChange(Number(trimmed));
+            }
+        }, [isValidCount, onGenerationCountChange]);
+
+        /**
+         * Validates on explicit generate (button / Enter).
+         * Returns the parsed count, or null after clearing + toasting on invalid input.
+         */
+        const validateInput = useCallback((): number | null => {
+            const trimmed = (inputRef.current?.value ?? '').trim();
+
+            if (!isValidCount(trimmed)) {
+                if (inputRef.current) {
+                    inputRef.current.value = '';
+                }
+                onEnqueueToast('error', 'Please enter a whole number between 1 and 100.');
+                return null;
+            }
+
+            const parsed = Number(trimmed);
+            onGenerationCountChange(parsed);
+            return parsed;
+        }, [isValidCount, onEnqueueToast, onGenerationCountChange]);
 
         const handleGenerate = useCallback(async () => {
-            const sanitizedCount = commitInputValue();
-            await onCreateJobs(sanitizedCount);
-        }, [commitInputValue, onCreateJobs]);
+            const count = validateInput();
+            if (count === null) return;
+            await onCreateJobs(count);
+        }, [validateInput, onCreateJobs]);
 
         const handleKeyDown = useCallback(
             async (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -137,7 +165,7 @@ const GenerateControls = memo(
                                 defaultValue={String(initialGenerationCount)}
                                 inputRef={inputRef}
                                 onFocus={handleFocus}
-                                onBlur={commitInputValue}
+                                onBlur={handleBlur}
                                 onKeyDown={handleKeyDown}
                                 slotProps={{
                                     htmlInput: {
@@ -322,6 +350,7 @@ export const PdfDashboardTemplate = ({
     connectionStatus,
     toasts,
     onGenerationCountChange,
+    onEnqueueToast,
     onCreateJobs,
     onCancelJob,
     onToastClose,
@@ -472,6 +501,7 @@ export const PdfDashboardTemplate = ({
                 requestInFlight={requestInFlight}
                 errorMessage={errorMessage}
                 onGenerationCountChange={onGenerationCountChange}
+                onEnqueueToast={onEnqueueToast}
                 onCreateJobs={handleCreateAndScroll}
             />
 
