@@ -1,59 +1,106 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Async PDF Generation Engine
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A full-stack Laravel 12 and React application demonstrating high-concurrency background processing, real-time UI synchronization, and robust backend architecture.
 
-## About Laravel
+## Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Backend:** Laravel 12, PHP 8.5, PostgreSQL 18, Redis 3
+- **Real-time:** Laravel Reverb, Laravel Echo
+- **Frontend:** React 19, Vite, Material UI (MUI), Emotion
+- **Infrastructure:** Laravel Sail (Docker)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Key Architectural Decisions
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+This project was built with focus on thread-safety, decoupled business logic and UI performance.
 
-## Learning Laravel
+### 1. Concurrency & Atomic DB Updates
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+In a high-throughput worker environment, using standard Eloquent `$model->update()` for status transitions introduces race conditions (read-then-write bugs).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+To solve this, the `PdfGenerationRepository` utilizes a unified generic atomic update pattern.
 
-## Laravel Sponsors
+Database state transitions (e.g., `WAITING -> PROCESSING`) are executed as single, atomic SQL statements. This ensures that even with 100+ concurrent queue workers, a PDF job can only be claimed once.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 2. Decoupled WebSockets
 
-### Premium Partners
+Because atomic database queries bypass Laravel's Eloquent lifecycle events (Observers), I decoupled the WebSocket side-effects from the database logic.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+The application uses a centralized `PdfStatusEmitter` helper.
 
-## Contributing
+The Service layer orchestrates the logic: it executes the atomic DB update, evaluates the result, and only then triggers the Emitter. This keeps the Domain/Service layer completely separated of "UI concerns" like WebSockets.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Derived Frontend State
 
-## Code of Conduct
+To prevent spamming the API during mass updates (e.g., generating 100 PDFs simultaneously), the dashboard is highly optimized:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- Initial load fetches the job list and aggregate stats via HTTP `GET`.
+- Subsequently, Laravel Echo listens for WebSocket pushes and updates the local React state.
+- Aggregate stats are derived locally using React's `useMemo` hook based on the active jobs array.
 
-## Security Vulnerabilities
+This eliminates the need to constantly poll any endpoint or pack heavy aggregate queries into WebSocket payloads.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 4. WCAG-Accessible UI
 
-## License
+The React frontend uses Material UI components configured for accessibility. State transitions (like job completion) trigger `aria-live` accessible toast notifications, and interactive elements support keyboard navigation.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Note on PDF Generation Implementation
+
+For the scope of this assignment, I skipped actual file generation and replaced it with a static `sample.pdf` file, simulating a dynamic payload delay of 3-15 seconds.
+
+The primary technical challenge of this task was the asynchronous architecture, atomic database concurrency (preventing race conditions on job claims/cancellations), and real-time UI state synchronization via WebSockets.
+
+### Production Implementation
+
+In a real-world scenario, I would not generate PDFs synchronously via PHP dependencies like `dompdf` or `wkhtmltopdf`. I would implement Gotenberg (a stateless Docker API for PDF rendering) or Spatie Browsershot without bloating the PHP application.
+
+## Local setup & installation
+
+This project uses Laravel Sail for a seamless Docker environment. If you run into any issues, refer to [Laravel Sail Docs](https://laravel.com/docs/13.x/sail).
+
+Note for Windows users: Please run these commands inside your WSL2 terminal.
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/karlmuuga/twn-async-pdf-task.git
+cd twn-async-pdf-task
+cp .env.example .env
+
+# Install Composer dependencies via a temporary container
+docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v "$(pwd):/var/www/html" \
+    -w /var/www/html \
+    composer:2 \
+    composer install --ignore-platform-reqs
+
+# Install NPM dependencies via a temporary container
+docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v "$(pwd):/var/www/html" \
+    -w /var/www/html \
+    node:24 \
+    npm install
+```
+
+### 2. Start the environment
+
+```bash
+./vendor/bin/sail up -d
+```
+
+### 3. Set app key and run database migrations
+
+When all containers have been started successfully (initial PostgreSQL startup can take a few seconds), run the following commands:
+
+```
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate
+```
+
+### 4. Access the Application
+
+Open your browser and navigate to: [http://localhost](http://localhost)
+
+> If testing on a local network device, Vite has been configured to allow CORS. Change `APP_URL` environment variable and access via your host machine's IP, e.g. `http://192.168.x.x`.
+
