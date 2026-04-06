@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * Supports logging status changes and processing metadata.
  * @property int $id
  * @property string $user_id           // UUID string representing the user's session
- * @property PdfStatus $status         // Enum-casted status: waiting, processing, completed, failed
+ * @property PdfStatus $status         // Enum-casted status: waiting, processing, completed, failed, cancelled
  * @property string|null $file_name    // Final name of the generated document
  * @property int|null $processing_time // Simulated time taken (3-15 seconds)
  */
