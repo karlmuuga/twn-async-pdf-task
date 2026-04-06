@@ -87,13 +87,6 @@ export const dashboardStyles: Styles = {
         borderRadius: '15px',
         border: '1px solid #e5e7eb',
     },
-    desktopOnly: {
-        display: { xs: 'none', md: 'block' },
-    },
-    mobileOnly: {
-        display: { xs: 'grid', md: 'none' },
-        gap: 1.5,
-    },
     mobileJobCard: {
         p: 1.5,
         border: '1px solid #e5e7eb',
@@ -149,8 +142,5 @@ export const dashboardStyles: Styles = {
         py: 5,
         textAlign: 'center',
         color: '#374151',
-    },
-    liveRegionText: {
-        color: '#1f2937',
     },
 };

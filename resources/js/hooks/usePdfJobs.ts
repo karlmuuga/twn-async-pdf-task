@@ -406,7 +406,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
             scheduleQueuedStatusFlush();
 
             /*
-             * Defer React state updates (setToast) completely out of the WebSocket
+             * Defer React state updates (enqueueToast) completely out of the WebSocket
              * message handler callback so the browser does not attribute the
              * React render time to the 'message' handler and trigger violations.
              */
@@ -439,7 +439,7 @@ export const usePdfJobs = (): UsePdfJobsResult => {
 
     /*
      * Create the PDF jobs.
-     * It's main purpose is to send the request to the server, and update the jobs state.
+     * Its main purpose is to send the request to the server, and update the jobs state.
      */
     const createPdfJobs = useCallback(async (countOverride?: number) => {
         const candidateCount = countOverride ?? generationCount;
